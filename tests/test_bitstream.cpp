@@ -44,3 +44,23 @@ TEST_CASE("round-trips 10000 random values", "[bitstream]") {
     REQUIRE(r.read_bits(width) == value);
   }
 }
+
+TEST_CASE("gamma round-trips 0 to 1000", "[gamma]") {
+  BitWriter w;
+  for (uint64_t x = 0; x <= 1000; ++x) {
+    write_gamma(w, x);
+  }
+  w.flush();
+
+  BitReader r(w.bytes());
+  for (uint64_t x = 0; x <= 1000; ++x) {
+    INFO("x = " << x);
+    REQUIRE(read_gamma(r) == x);
+  }
+}
+
+TEST_CASE("gamma encodes 12 in 7 bits", "[gamma]") {
+  BitWriter w;
+  write_gamma(w, 12);
+  REQUIRE(w.bits_written() == 7);
+}

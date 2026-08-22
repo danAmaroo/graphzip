@@ -1,5 +1,6 @@
 #include "bitstream.hpp"
 #include <algorithm>
+#include <bit>
 #include <cstdint>
 
 namespace {
@@ -58,4 +59,26 @@ uint64_t BitReader::read_bits(int n) {
 void BitReader::seek(uint64_t bit_pos) {
   byteIndex = bit_pos / 8;
   bitsConsumed = bit_pos % 8;
+}
+
+void write_gamma(BitWriter &w, uint64_t x) {
+  x += 1;
+  int bitLength = std::bit_width(x);
+  for (int i = 0; i < bitLength - 1; i++) {
+    w.write_bits(0, 1);
+  }
+  w.write_bits(x, bitLength);
+}
+
+uint64_t read_gamma(BitReader &r) {
+  int z = 0;
+  while (true) {
+    if (r.read_bits(1) == 1) {
+      break;
+    }
+    z++;
+  }
+  uint64_t rest = r.read_bits(z);
+  uint64_t x = (1ULL << z) | rest;
+  return x - 1;
 }

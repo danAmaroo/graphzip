@@ -30,3 +30,6 @@ public:
   uint64_t read_bits(int n);
   void seek(uint64_t bit_pos);
 };
+
+void write_gamma(BitWriter &w, uint64_t x);
+uint64_t read_gamma(BitReader &r);
