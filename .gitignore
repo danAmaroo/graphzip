@@ -1,0 +1,6 @@
+build/
+data/
+*.gz
+*.sql
+compile_commands.json
+.cache/
