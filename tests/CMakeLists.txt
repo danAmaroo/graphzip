@@ -6,8 +6,10 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(Catch2)
 
-add_executable(tests test_bitstream.cpp)
+# add_executable(tests test_bitstream.cpp)
+add_executable(tests test_bitstream.cpp test_sqlparse.cpp)
 target_link_libraries(tests PRIVATE graphzip_core Catch2::Catch2WithMain)
+
 
 include(Catch)
 catch_discover_tests(tests)
