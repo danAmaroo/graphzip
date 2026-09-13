@@ -1,10 +1,14 @@
 #include "dumps.hpp"
+#include "graph.hpp"
+#include <random>
 
 #include <algorithm>
+#include <chrono>
 #include <fstream>
 #include <ios>
 #include <iostream>
 #include <string_view>
+#include <utility>
 #include <vector>
 
 int main(int argc, char **argv) {
@@ -48,6 +52,97 @@ int main(int argc, char **argv) {
   }
   if (cmd == "subset") {
     make_subset("data/edges_raw.bin", "data/edges_1m.bin", 1'000'000);
+    return 0;
+  }
+
+  if (cmd == "sort-edges") {
+    auto flat = read_u32_file("data/edges_1m.bin");
+    std::vector<std::pair<uint32_t, uint32_t>> pairs;
+    pairs.reserve(flat.size() / 2);
+
+    for (size_t i = 0; i + 1 < flat.size(); i += 2) {
+      pairs.emplace_back(flat[i], flat[i + 1]);
+    }
+    std::cerr << pairs.size() << " edges before dedup\n";
+
+    std::sort(pairs.begin(), pairs.end());
+    pairs.erase(std::unique(pairs.begin(), pairs.end()), pairs.end());
+    std::cerr << pairs.size() << " edges after dedup\n";
+
+    std::ofstream out("data/edges_1m_sorted.bin", std::ios::binary);
+    out.write(reinterpret_cast<const char *>(pairs.data()),
+              static_cast<std::streamsize>(pairs.size() * 8));
+    static_assert(sizeof(std::pair<uint32_t, uint32_t>) == 8);
+
+    return 0;
+  }
+
+  if (cmd == "load") {
+    auto t0 = std::chrono::steady_clock::now();
+    Graph g = Graph::load("data/edges_1m_sorted.bin", 1'000'000);
+    auto t1 = std::chrono::steady_clock::now();
+    auto ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+    std::cerr << g.node_count() << " nodes\n";
+    std::cerr << g.edge_count() << " edges\n";
+    std::cerr << g.memory_bytes() / 1024.0 / 1024.0 << " MB\n";
+    std::cerr << g.memory_bytes() * 8.0 / g.edge_count() << " bits/edge\n";
+    std::cerr << ms << " ms to load\n";
+  }
+
+  if (cmd == "bfs" && argc > 3) {
+    Graph g = Graph::load("data/edges_1m_sorted.bin", 1'000'000);
+    uint32_t from = std::stoul(argv[2]);
+    uint32_t to = std::stoul(argv[3]);
+    auto t0 = std::chrono::steady_clock::now();
+    uint32_t d = bfs(g, from, to);
+    auto t1 = std::chrono::steady_clock::now();
+    auto us =
+        std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+
+    if (d == UINT32_MAX) {
+      std::cerr << from << " -> " << to << ": unreachable";
+    } else {
+      std::cerr << from << " -> " << to << ": " << d << " hops";
+    }
+    std::cerr << " (" << us << " us)\n";
+    return 0;
+  }
+
+  if (cmd == "bench") {
+    Graph g = Graph::load("data/edges_1m_sorted.bin", 1'000'000);
+    std::cerr << g.node_count() << " nodes, " << g.edge_count() << " edges\n";
+    std::cerr << g.memory_bytes() * 8.0 / g.edge_count() << " bits/edge\n\n";
+
+    std::mt19937 rng(20260913);
+    std::uniform_int_distribution<uint32_t> pick(0, g.node_count() - 1);
+
+    uint64_t total_us = 0;
+    const int runs = 10;
+
+    for (int i = 0; i < runs; ++i) {
+      uint32_t from = pick(rng);
+      uint32_t to = pick(rng);
+
+      auto t0 = std::chrono::steady_clock::now();
+      uint32_t d = bfs(g, from, to);
+      auto t1 = std::chrono::steady_clock::now();
+
+      auto us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0)
+                    .count();
+      total_us += us;
+
+      std::cerr << from << " -> " << to << ": ";
+      if (d == UINT32_MAX) {
+        std::cerr << "unreachable";
+      } else {
+        std::cerr << d << " hops";
+      }
+      std::cerr << " (" << us << " us)\n";
+    }
+
+    std::cerr << "\naverage: " << total_us / runs << " us\n";
     return 0;
   }
 
