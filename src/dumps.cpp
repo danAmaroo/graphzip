@@ -1,5 +1,6 @@
 #include "dumps.hpp"
 #include "sqlparse.hpp"
+#include <algorithm>
 #include <charconv>
 #include <cstddef>
 #include <cstdint>
@@ -10,6 +11,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace {
@@ -91,6 +93,17 @@ std::unordered_map<std::string, uint32_t> load_titles(const std::string &dir) {
     dense_id_map[line] = dense++;
   }
   return dense_id_map;
+}
+
+std::vector<std::string> load_titles_list(const std::string &dir) {
+  std::vector<std::string> titles;
+  titles.reserve(8'000'000);
+  std::ifstream in(dir + "/titles.txt");
+  std::string line;
+  while (getline(in, line)) {
+    titles.push_back(line);
+  }
+  return titles;
 }
 
 std::vector<uint32_t>
@@ -225,4 +238,23 @@ void make_subset(const std::string &in_path, const std::string &out_path,
       flush();
   }
   flush();
+}
+
+void sort_dedup_edges(const std::string &in_path, const std::string &out_path) {
+  static_assert(sizeof(std::pair<uint32_t, uint32_t>) == 8);
+  auto flat = read_u32_file(in_path);
+  auto *pairs = reinterpret_cast<std::pair<uint32_t, uint32_t> *>(flat.data());
+  size_t count = flat.size() / 2;
+  std::cerr << count << " edges before dedup\n";
+
+  std::sort(pairs, pairs + count);
+  size_t deduped =
+      static_cast<size_t>(std::unique(pairs, pairs + count) - pairs);
+  std::cerr << deduped << " edges after dedup\n";
+
+  std::ofstream out(out_path, std::ios::binary);
+  if (!out)
+    throw std::runtime_error("could not open " + out_path);
+  out.write(reinterpret_cast<const char *>(pairs),
+            static_cast<std::streamsize>(deduped * sizeof(*pairs)));
 }

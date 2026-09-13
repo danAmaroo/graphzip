@@ -78,6 +78,17 @@ int main(int argc, char **argv) {
     return 0;
   }
 
+  if (cmd == "sort-edges-full") {
+    auto n = static_cast<uint32_t>(load_titles_list("data").size());
+    auto t0 = std::chrono::steady_clock::now();
+    sort_dedup_edges("data/edges_raw.bin", "data/edges_full_sorted.bin");
+    auto t1 = std::chrono::steady_clock::now();
+    auto ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+    std::cerr << n << " nodes, " << ms << " ms\n";
+    return 0;
+  }
+
   if (cmd == "load") {
     auto t0 = std::chrono::steady_clock::now();
     Graph g = Graph::load("data/edges_1m_sorted.bin", 1'000'000);
@@ -110,6 +121,108 @@ int main(int argc, char **argv) {
       std::cerr << from << " -> " << to << ": " << d << " hops";
     }
     std::cerr << " (" << us << " us)\n";
+    return 0;
+  }
+
+  if (cmd == "path" && argc > 3) {
+    auto title_to_id = load_titles("data");
+    auto id_to_title = load_titles_list("data");
+
+    auto lookup = [&](std::string title) -> uint32_t {
+      std::replace(title.begin(), title.end(), ' ', '_');
+      auto it = title_to_id.find(title);
+      return it == title_to_id.end() ? UINT32_MAX : it->second;
+    };
+
+    uint32_t from = lookup(argv[2]);
+    uint32_t to = lookup(argv[3]);
+    if (from == UINT32_MAX || to == UINT32_MAX) {
+      std::cerr << "title not found\n";
+      return 1;
+    }
+
+    Graph g = Graph::load("data/edges_1m_sorted.bin", 1'000'000);
+    std::vector<uint32_t> path;
+    auto t0 = std::chrono::steady_clock::now();
+    uint32_t d = bfs_path(g, from, to, path);
+    auto t1 = std::chrono::steady_clock::now();
+    auto ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+    if (d == UINT32_MAX) {
+      std::cerr << argv[2] << " -> " << argv[3] << ": unreachable (" << ms
+                << " ms)\n";
+      return 0;
+    }
+
+    for (size_t i = 0; i < path.size(); ++i) {
+      if (i)
+        std::cerr << " -> ";
+      std::cerr << id_to_title[path[i]];
+    }
+    std::cerr << "  (" << d << " hops, " << ms << " ms)\n";
+    return 0;
+  }
+
+  if (cmd == "bfs-full" && argc > 3) {
+    auto id_to_title = load_titles_list("data");
+    auto n = static_cast<uint32_t>(id_to_title.size());
+    Graph g = Graph::load("data/edges_full_sorted.bin", n);
+    uint32_t from = std::stoul(argv[2]);
+    uint32_t to = std::stoul(argv[3]);
+    auto t0 = std::chrono::steady_clock::now();
+    uint32_t d = bfs(g, from, to);
+    auto t1 = std::chrono::steady_clock::now();
+    auto us =
+        std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0).count();
+
+    if (d == UINT32_MAX) {
+      std::cerr << from << " -> " << to << ": unreachable";
+    } else {
+      std::cerr << from << " -> " << to << ": " << d << " hops";
+    }
+    std::cerr << " (" << us << " us)\n";
+    return 0;
+  }
+
+  if (cmd == "path-full" && argc > 3) {
+    auto title_to_id = load_titles("data");
+    auto id_to_title = load_titles_list("data");
+    auto n = static_cast<uint32_t>(id_to_title.size());
+
+    auto lookup = [&](std::string title) -> uint32_t {
+      std::replace(title.begin(), title.end(), ' ', '_');
+      auto it = title_to_id.find(title);
+      return it == title_to_id.end() ? UINT32_MAX : it->second;
+    };
+
+    uint32_t from = lookup(argv[2]);
+    uint32_t to = lookup(argv[3]);
+    if (from == UINT32_MAX || to == UINT32_MAX) {
+      std::cerr << "title not found\n";
+      return 1;
+    }
+
+    Graph g = Graph::load("data/edges_full_sorted.bin", n);
+    std::vector<uint32_t> path;
+    auto t0 = std::chrono::steady_clock::now();
+    uint32_t d = bfs_path(g, from, to, path);
+    auto t1 = std::chrono::steady_clock::now();
+    auto ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count();
+
+    if (d == UINT32_MAX) {
+      std::cerr << argv[2] << " -> " << argv[3] << ": unreachable (" << ms
+                << " ms)\n";
+      return 0;
+    }
+
+    for (size_t i = 0; i < path.size(); ++i) {
+      if (i)
+        std::cerr << " -> ";
+      std::cerr << id_to_title[path[i]];
+    }
+    std::cerr << "  (" << d << " hops, " << ms << " ms)\n";
     return 0;
   }
 
