@@ -18,7 +18,7 @@ compressed form exactly (verified node by node against the uncompressed graph).
 ## Demo
 
 ```
-$ ./build/graphzip path "Phil_Foden" "Tiger_beetle"
+$ ./build/graphzip path-full "Phil_Foden" "Tiger_beetle"
 Phil_Foden -> Arsenal_F.C. -> Oak -> Beetle -> Tiger_beetle  (4 hops, 2889 ms)
 
 $ ./build/graphzip verify
@@ -42,7 +42,7 @@ graph you can query rather than an archive you have to unpack first.
 ## Build & run
 
 ```bash
-cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo
+cmake -B build 
 cmake --build build
 ./build/tests/tests
 ```
