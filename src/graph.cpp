@@ -5,8 +5,9 @@
 #include <string>
 #include <vector>
 
-std::span<const uint32_t> Graph::neighbours(uint32_t node) const {
-  return {targets.data() + offsets[node], offsets[node + 1] - offsets[node]};
+void Graph::neighbours(uint32_t node, std::vector<uint32_t> &out) const {
+  out.assign(targets.begin() + offsets[node],
+             targets.begin() + offsets[node + 1]);
 }
 
 uint32_t Graph::node_count() const { return offsets.size() - 1; };
@@ -32,25 +33,3 @@ Graph Graph::load(const std::string &path, uint32_t n) {
   }
   return g;
 };
-
-uint32_t bfs(const Graph &g, uint32_t from, uint32_t to) {
-  std::vector<uint32_t> dist(g.node_count(), UINT32_MAX);
-  std::vector<uint32_t> queue;
-  size_t head = 0;
-  dist[from] = 0;
-  queue.push_back(from);
-  if (from == to)
-    return 0;
-  while (head < queue.size()) {
-    uint32_t node = queue[head++];
-    for (uint32_t nb : g.neighbours(node)) {
-      if (dist[nb] != UINT32_MAX)
-        continue;
-      dist[nb] = dist[node] + 1;
-      if (nb == to)
-        return dist[nb];
-      queue.push_back(nb);
-    }
-  }
-  return UINT32_MAX;
-}

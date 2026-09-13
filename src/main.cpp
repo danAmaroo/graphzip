@@ -1,12 +1,13 @@
+#include "compressed.hpp"
 #include "dumps.hpp"
 #include "graph.hpp"
-#include <random>
 
 #include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <ios>
 #include <iostream>
+#include <random>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -89,6 +90,8 @@ int main(int argc, char **argv) {
     std::cerr << g.memory_bytes() / 1024.0 / 1024.0 << " MB\n";
     std::cerr << g.memory_bytes() * 8.0 / g.edge_count() << " bits/edge\n";
     std::cerr << ms << " ms to load\n";
+
+    return 0;
   }
 
   if (cmd == "bfs" && argc > 3) {
@@ -143,6 +146,74 @@ int main(int argc, char **argv) {
     }
 
     std::cerr << "\naverage: " << total_us / runs << " us\n";
+    return 0;
+  }
+  if (cmd == "compressed-bench") {
+    Graph g = Graph::load("data/edges_1m_sorted.bin", 1'000'000);
+    CompressedGraph cg = CompressedGraph::build(g);
+    std::cerr << g.node_count() << " nodes, " << g.edge_count() << " edges\n";
+    std::cerr << g.memory_bytes() * 8.0 / g.edge_count() << " bits/edge\n\n";
+
+    std::mt19937 rng(20260913);
+    std::uniform_int_distribution<uint32_t> pick(0, g.node_count() - 1);
+
+    uint64_t total_us = 0;
+    const int runs = 10;
+
+    for (int i = 0; i < runs; ++i) {
+      uint32_t from = pick(rng);
+      uint32_t to = pick(rng);
+
+      auto t0 = std::chrono::steady_clock::now();
+      uint32_t d = bfs(cg, from, to);
+      auto t1 = std::chrono::steady_clock::now();
+
+      auto us = std::chrono::duration_cast<std::chrono::microseconds>(t1 - t0)
+                    .count();
+      total_us += us;
+
+      std::cerr << from << " -> " << to << ": ";
+      if (d == UINT32_MAX) {
+        std::cerr << "unreachable";
+      } else {
+        std::cerr << d << " hops";
+      }
+      std::cerr << " (" << us << " us)\n";
+    }
+
+    std::cerr << "\naverage: " << total_us / runs << " us\n";
+    return 0;
+  }
+  if (cmd == "verify") {
+    Graph g = Graph::load("data/edges_1m_sorted.bin", 1'000'000);
+    std::cerr << "baseline loaded\n";
+
+    CompressedGraph cg = CompressedGraph::build(g);
+    std::cerr << "compressed built\n";
+
+    std::vector<uint32_t> a, b;
+    uint64_t checked = 0;
+
+    for (uint32_t node = 0; node < g.node_count(); ++node) {
+      g.neighbours(node, a);
+      cg.neighbours(node, b);
+
+      if (a != b) {
+        std::cerr << "MISMATCH at node " << node << "\n";
+        std::cerr << "  baseline degree " << a.size() << ", compressed degree "
+                  << b.size() << "\n";
+        for (size_t i = 0; i < std::min(a.size(), b.size()) && i < 10; ++i) {
+          std::cerr << "  [" << i << "] " << a[i] << " vs " << b[i] << "\n";
+        }
+        return 1;
+      }
+      checked += a.size();
+    }
+
+    std::cerr << "OK: " << g.node_count() << " nodes, " << checked
+              << " edges round-tripped exactly\n";
+    std::cerr << cg.memory_bytes() / 1024.0 / 1024.0 << " MB\n";
+    std::cerr << cg.memory_bytes() * 8.0 / cg.edge_count() << " bits/edge\n";
     return 0;
   }
 
