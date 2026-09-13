@@ -18,8 +18,8 @@ compressed form exactly (verified node by node against the uncompressed graph).
 ## Demo
 
 ```
-$ ./build/graphzip path "Grace Hopper" "Kevin Bacon"
-Grace_Hopper -> American_Civil_War -> Cinema_of_the_United_States -> Kevin_Bacon  (3 hops, 4 ms)
+$ ./build/graphzip path "Phil_Foden" "Tiger_beetle"
+Phil_Foden -> Arsenal_F.C. -> Oak -> Beetle -> Tiger_beetle  (4 hops, 2889 ms)
 
 $ ./build/graphzip verify
 OK: 1000000 nodes, 80247404 edges round-tripped exactly
