@@ -27,3 +27,16 @@ TEST_CASE("commas inside strings are not separators", "[sqlparse]") {
   REQUIRE(out.size() == 3);
   REQUIRE(out[2] == "'a,b'");
 }
+
+TEST_CASE("iterates every tuple in a line", "[sqlparse]") {
+  std::string_view line = "INSERT INTO `page` VALUES (1,0,'A',0),(2,0,'B',1);";
+
+  std::vector<std::string> seen;
+  for_each_tuple(line, [&](const std::vector<std::string_view> &f) {
+    seen.emplace_back(f[2]);
+  });
+
+  REQUIRE(seen.size() == 2);
+  REQUIRE(seen[0] == "'A'");
+  REQUIRE(seen[1] == "'B'");
+}

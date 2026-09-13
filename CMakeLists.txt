@@ -8,6 +8,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 add_library(graphzip_core
     src/bitstream.cpp
     src/sqlparse.cpp
+    src/dumps.cpp
 )
 target_include_directories(graphzip_core PUBLIC include)
 target_compile_options(graphzip_core PRIVATE -Wall -Wextra)
